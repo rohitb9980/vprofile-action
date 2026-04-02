@@ -59,6 +59,22 @@ jobs:
       - name: Build Artifact (Create WAR)
         run: mvn clean install -DskipTests
 
+      - name: Debug - Check files
+        run: |
+          echo "=== Current Directory ==="
+          pwd
+          echo "=== All Files ==="
+          ls -la
+          echo "=== Target Directory ==="
+          ls -la target/ || echo "No target directory"
+          echo "=== Dockerfile Check ==="
+          if [ -f Dockerfile ]; then
+            echo "✓ Dockerfile EXISTS"
+          else
+            echo "✗ Dockerfile MISSING - Build will fail!"
+            exit 1
+          fi
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
