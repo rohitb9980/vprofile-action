@@ -3,16 +3,17 @@ kind: Ingress
 metadata:
   name: vpro-ingress 
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   rules:
-  - host: kube.devopswithrohit.online
+  - host: kube8.devopswithrohit.online
     http:
-      paths: /
-      pathtype: Prefix
-      backend:
-        service:
-          name: vproapp-service
-          port:
-            number: 8080
+      paths:
+      - path: /                # Added the dash here
+        pathType: Prefix       # Fixed capitalization (pathType)
+        backend:
+          service:
+            name: vproapp-service
+            port:
+              number: 8080
