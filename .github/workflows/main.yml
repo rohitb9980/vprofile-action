@@ -126,9 +126,7 @@ jobs:
           chart-path: helm/vprofilecharts
           namespace: default
           name: vprofile-stack
-          # Added a comma at the end of the first line to keep the command valid
-          values: |
-            app.image=429286308021.dkr.ecr.us-east-1.amazonaws.com/vprofileaction,
-            app.tag=${{ github.run_number }}
-          action: upgrade # Changed to 'upgrade' so it works on every run
+          # Keep values on a single line with a comma to be safe
+          values: app.image=429286308021.dkr.ecr.us-east-1.amazonaws.com/vprofileaction,app.tag=${{ github.run_number }}
+          action: install
           update-deps: true
