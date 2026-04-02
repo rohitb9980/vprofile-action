@@ -8,6 +8,10 @@ env:
   EKS_CLUSTER: vprofile-eks
 
 jobs:
+
+  # -------------------------
+  # 1. TESTING
+  # -------------------------
   Testing:
     runs-on: ubuntu-latest
     steps:
@@ -43,9 +47,13 @@ jobs:
             -Dsonar.java.binaries=target/classes
 
 
+  # -------------------------
+  # 2. BUILD + PUSH
+  # -------------------------
   BUILD_AND_PUBLISH:
     needs: Testing
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -67,22 +75,57 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build, tag, and push image
         env:
           ECR_REGISTRY: 429286308021.dkr.ecr.us-east-1.amazonaws.com
           IMAGE_TAG: ${{ github.run_number }}
-          ECR_REPOSITORY: vprofileaction
         run: |
-          # 1. Build using the specific multistage path from your image
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             -f Docker-files/app/multistage/Dockerfile .
-          
-          # 2. Tag as latest
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          
-          # 3. Push both tags
+
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+                     $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+
+  # -------------------------
+  # 3. DEPLOY TO EKS  ✅ NEW
+  # -------------------------
+  DEPLOY_TO_EKS:
+    needs: BUILD_AND_PUBLISH
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+          --region ${{ env.AWS_REGION }} \
+          --name ${{ env.EKS_CLUSTER }}
+
+      - name: Deploy using Helm
+        uses: bitovi/github-actions-deploy-eks-helm@v1.2.8
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          cluster-name: ${{ env.EKS_CLUSTER }}
+          chart-path: helm/vprofilecharts
+          namespace: default
+          name: vprofile-stack
+          values: |
+            app.image=429286308021.dkr.ecr.us-east-1.amazonaws.com/vprofileaction
+            app.tag=${{ github.run_number }}
