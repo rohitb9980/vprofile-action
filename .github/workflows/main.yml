@@ -10,30 +10,25 @@ env:
 jobs:
   Testing:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ✅ FIX 1: Use Java 17 (matches your project)
       - name: Set Java 17
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # ✅ FIX 2: Clean + build properly
       - name: Maven Test
         run: mvn clean test
 
       - name: Checkstyle
         run: mvn checkstyle:checkstyle
 
-      # ✅ FIX 3: Setup Sonar Scanner
-      - name: Setup SonarQube
+      - name: Setup Sonar Scanner
         uses: warchant/setup-sonar-scanner@v7
 
-      # ✅ FIX 4: Correct YAML syntax
       - name: SonarQube Scan
         run: |
           sonar-scanner \
@@ -47,8 +42,6 @@ jobs:
             -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml \
             -Dsonar.java.binaries=target/classes
 
-      # ❌ REMOVED Quality Gate (was causing failure)
-
   BUILD_AND_PUBLISH:
     needs: Testing
     runs-on: ubuntu-latest
@@ -56,16 +49,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build and Upload image to ECR
-        uses: apply/docker-pcr-action@master
+      # IMPORTANT: Re-build the artifact so Docker can find the .war/.jar file
+      - name: Set Java 17
+        uses: actions/setup-java@v3
         with:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          REGISTRY: ${{ secrets.REGISTRY}}
-          REPOSITORY: ${{ env.ECR_REPOSITORY }}
-          REGION: ${{ env.AWS_REGION }}
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build Artifact
+        run: mvn clean install -DskipTests
+
+      - name: Build and Upload image to ECR
+        # Verified common action name: appleboy/docker-ecr-action
+        uses: appleboy/docker-ecr-action@master 
+        with:
+          access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          registry: ${{ secrets.REGISTRY }}
+          repo: ${{ env.ECR_REPOSITORY }}
+          region: ${{ env.AWS_REGION }}
           tags: latest,${{ github.run_number }}
           daemon_off: false
           dockerfile: ./Dockerfile
           context: ./
-
