@@ -116,16 +116,17 @@ jobs:
           --region ${{ env.AWS_REGION }} \
           --name ${{ env.EKS_CLUSTER }}
 
-      - name: Deploy using Helm
+      - name: Deploy to EKS using Helm
         uses: bitovi/github-actions-deploy-eks-helm@v1.2.8
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-          cluster-name: ${{ env.EKS_CLUSTER }}
+          aws-region: us-east-1
+          cluster-name: vprofile-eks
           chart-path: helm/vprofilecharts
           namespace: default
           name: vprofile-stack
           values: |
             app.image=429286308021.dkr.ecr.us-east-1.amazonaws.com/vprofileaction
             app.tag=${{ github.run_number }}
+          action: install
