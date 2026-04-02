@@ -48,3 +48,24 @@ jobs:
             -Dsonar.java.binaries=target/classes
 
       # ❌ REMOVED Quality Gate (was causing failure)
+
+  BUILD_AND_PUBLISH:
+    needs: Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build and Upload image to ECR
+        uses: apply/docker-pcr-action@master
+        with:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          REGISTRY: ${{ secrets.REGISTRY}}
+          REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          REGION: ${{ env.AWS_REGION }}
+          tags: latest,${{ github.run_number }}
+          daemon_off: false
+          dockerfile: ./Dockerfile
+          context: ./
+
